@@ -1,0 +1,115 @@
+{
+  "name": "CampusAI EnergyWise - Sustainability Insight Workflow",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "name": "Campus Energy Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "campus-energy",
+        "responseMode": "lastNode"
+      },
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "const x=$json; return [{json:{building:x.building,occupancy_pct:Number(x.occupancy_pct),temperature_c:Number(x.temperature_c),energy_kwh:Number(x.energy_kwh),timestamp:x.timestamp||new Date().toISOString()}}];"
+      },
+      "position": [
+        250,
+        0
+      ]
+    },
+    {
+      "name": "AI Sustainability Prompt",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "const x=$json; const prompt=`You are CampusAI EnergyWise, a sustainability decision-support assistant. Analyze: Building=${x.building}; Occupancy=${x.occupancy_pct}%; Temperature=${x.temperature_c} C; Energy=${x.energy_kwh} kWh. Return JSON with risk_level, possible_causes, recommended_actions, confidence_note, responsible_ai_note. Do not claim measured carbon savings. Do not make safety-critical decisions. Recommendations require facility-manager approval.`; return [{json:{...x,ai_prompt:prompt}}];"
+      },
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "name": "AI Model / IBM Granite",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "CONFIGURE_APPROVED_GRANITE_OR_WATSONX_ENDPOINT",
+        "method": "POST",
+        "sendBody": true,
+        "jsonBody": "={{ {prompt: $json.ai_prompt} }}"
+      },
+      "position": [
+        820,
+        0
+      ]
+    },
+    {
+      "name": "Format Sustainability Report",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "return [{json:{building:$json.building,generated_at:new Date().toISOString(),sustainability_output:$json,status:\"Decision support only - human review required\"}}];"
+      },
+      "position": [
+        1100,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Campus Energy Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "AI Sustainability Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Sustainability Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Model / IBM Granite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Model / IBM Granite": {
+      "main": [
+        [
+          {
+            "node": "Format Sustainability Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
